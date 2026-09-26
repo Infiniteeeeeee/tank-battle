@@ -120,6 +120,7 @@
       <div class="row"><span class="lbl">关卡 STAGE</span><span class="val" id="stage">1</span></div>
       <div class="row"><span class="lbl">生命 LIVES</span><span class="lives" id="lives"></span></div>
       <div class="row"><span class="lbl">敌军 ENEMY</span><span class="enemy-count" id="enemies"></span></div>
+      <div class="row"><span class="lbl">基地 BASE</span><span class="val" id="base-hp">3</span></div>
       <div class="row"><span class="lbl" id="pwr-lbl">状态 NONE</span></div>
     </div>
   </div>
@@ -150,6 +151,7 @@ const EMPTY = 0, BRICK = 1, STEEL = 2, WATER = 3, GRASS = 4, BASE = 5;
 const DIRS = { up: [0,-1], down: [0,1], left: [-1,0], right: [1,0] };
 
 const PUP_TYPES = ["shield", "star", "bomb", "life"];
+const BASE_HP = 3;                    // 基地初始血量
 
 /* ================= 关卡地图 ================= */
 const MAPS = [
@@ -212,6 +214,7 @@ let keys = {};
 let lastDir = "up";
 let playerShootCd = 0;
 let shake = 0, shakeX = 0, shakeY = 0;
+let baseHp = BASE_HP, baseFlash = 0;
 
 const SPAWN_POINTS = [[0,0], [6,0], [12,0]];
 const PLAYER_SPAWN = [4 * TILE, 12 * TILE];
@@ -219,10 +222,10 @@ const MAX_ALIVE = 4;
 
 /* 敌军配置 */
 const ENEMY_TYPES = {
-  basic: { hp: 1, speed: 1.1, bulletSpeed: 3.2, color: "#c6cad2", shoot: 90, score: 100 },
-  fast:  { hp: 1, speed: 2.0, bulletSpeed: 4.0, color: "#9fd08a", shoot: 80, score: 200 },
-  power: { hp: 1, speed: 1.2, bulletSpeed: 5.0, color: "#e8b95a", shoot: 55, score: 300 },
-  armor: { hp: 4, speed: 1.0, bulletSpeed: 3.2, color: "#7f8b99", shoot: 110, score: 400 },
+  basic: { hp: 1, speed: 0.8,  bulletSpeed: 3.2, color: "#c6cad2", shoot: 90, score: 100 },
+  fast:  { hp: 1, speed: 1.5,  bulletSpeed: 4.0, color: "#9fd08a", shoot: 80, score: 200 },
+  power: { hp: 1, speed: 0.9,  bulletSpeed: 5.0, color: "#e8b95a", shoot: 55, score: 300 },
+  armor: { hp: 4, speed: 0.75, bulletSpeed: 3.2, color: "#7f8b99", shoot: 110, score: 400 },
 };
 
 /* ================= 音频 ================= */
@@ -321,6 +324,7 @@ function startStage() {
   player = makeTank(PLAYER_SPAWN[0], PLAYER_SPAWN[1], "up", false);
   tanks.push(player);
   remaining = 6 + stage * 3;      // 每关敌军数量（初始较少）
+  baseHp = BASE_HP; baseFlash = 0;
   spawnTimer = 60; spawnPoint = 0;
   playerShootCd = 0;
   state = "playing";
@@ -444,10 +448,18 @@ function updateBullets() {
       b.dead = true; continue;
     }
     if (t === BASE) {
-      grid[ty][tx] = EMPTY;
-      spawnParticles(tx * TILE + 16, ty * TILE + 16, "#ff6b4a", 30);
       b.dead = true;
-      gameOver(); return;
+      if (b.owner === "player") continue;   // 自己的子弹不能误伤基地
+      baseHp--;
+      baseFlash = 12;
+      spawnParticles(tx * TILE + 16, ty * TILE + 16, "#ff6b4a", 20);
+      sfx.hit();
+      if (baseHp <= 0) {
+        grid[ty][tx] = EMPTY;
+        spawnParticles(tx * TILE + 16, ty * TILE + 16, "#ff6b4a", 30);
+        gameOver(); return;
+      }
+      continue;
     }
 
     // 与坦克碰撞
@@ -596,6 +608,7 @@ function update() {
   frame++;
   if (shake > 0) { shake--; shakeX = (Math.random() - 0.5) * shake * 1.4; shakeY = (Math.random() - 0.5) * shake * 1.4; }
   else shakeX = shakeY = 0;
+  if (baseFlash > 0) baseFlash--;
 
   updatePlayer();
 
@@ -684,6 +697,14 @@ function drawBase() {
       ctx.fillStyle = "#c8ccd2"; ctx.fillRect(x + 14, y + 2, 4, 28);       // 旗杆
       ctx.fillStyle = "#e23b2e"; ctx.fillRect(x + 18, y + 2, 10, 8);       // 旗帜
       ctx.fillStyle = "#fff"; ctx.fillRect(x + 21, y + 4, 3, 3);           // 星
+      // 基地血量指示
+      ctx.fillStyle = "#5ee35a";
+      for (let i = 0; i < baseHp; i++) ctx.fillRect(x + 4 + i * 6, y + 28, 4, 3);
+      // 受击闪红
+      if (baseFlash > 0) {
+        ctx.fillStyle = "rgba(255,60,40,0.5)";
+        ctx.fillRect(x, y, TILE, TILE);
+      }
     }
 }
 
@@ -778,6 +799,7 @@ function updateHUD() {
   document.getElementById("score").textContent = score;
   document.getElementById("hi").textContent = hiscore;
   document.getElementById("stage").textContent = stage;
+  document.getElementById("base-hp").textContent = baseHp;
 
   const livesEl = document.getElementById("lives");
   livesEl.innerHTML = "";
