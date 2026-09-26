@@ -593,6 +593,7 @@ function updateParticles() {
 
 /* ================= 胜负判定 ================= */
 function checkWin() {
+  if (state !== "playing") return;   // 本帧已死亡/基地被毁，则不再判胜
   const alive = tanks.some(t => t.isEnemy && t.hp > 0);
   if (remaining <= 0 && !alive) {
     score += 500;
