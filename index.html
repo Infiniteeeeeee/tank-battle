@@ -422,30 +422,31 @@ function updateEnemy(e) {
 
 /* ================= 子弹 ================= */
 function updateBullets() {
-  for (let i = bullets.length - 1; i >= 0; i--) {
+  for (let i = 0; i < bullets.length; i++) {
     const b = bullets[i];
+    if (b.dead) continue;
     const [dx, dy] = DIRS[b.dir];
     b.x += dx * b.speed;
     b.y += dy * b.speed;
 
-    if (b.x < 0 || b.y < 0 || b.x > CANVAS || b.y > CANVAS) { bullets.splice(i, 1); continue; }
+    if (b.x < 0 || b.y < 0 || b.x > CANVAS || b.y > CANVAS) { b.dead = true; continue; }
 
     // 与地砖碰撞
     const tx = Math.floor(b.x / TILE), ty = Math.floor(b.y / TILE);
     const t = tileAt(tx, ty);
     if (t === BRICK) {
-      grid[ty][tx] = EMPTY; bullets.splice(i, 1);
+      grid[ty][tx] = EMPTY; b.dead = true;
       spawnParticles(tx * TILE + 16, ty * TILE + 16, "#b5651d"); sfx.brick();
       score += 5; continue;
     }
     if (t === STEEL) {
       if (b.power) { grid[ty][tx] = EMPTY; sfx.brick(); spawnParticles(tx*TILE+16, ty*TILE+16, "#9aa0a6"); }
-      bullets.splice(i, 1); continue;
+      b.dead = true; continue;
     }
     if (t === BASE) {
       grid[ty][tx] = EMPTY;
       spawnParticles(tx * TILE + 16, ty * TILE + 16, "#ff6b4a", 30);
-      bullets.splice(i, 1);
+      b.dead = true;
       gameOver(); return;
     }
 
@@ -456,24 +457,28 @@ function updateBullets() {
       if (b.owner === "player" && t.isEnemy === false) continue;
       if (b.owner === "enemy" && t.isEnemy === true) continue;
       if (aabb(b.x - 2, b.y - 2, 5, 5, t.x, t.y, TANK, TANK)) {
-        bullets.splice(i, 1); hit = true;
+        b.dead = true;
         damageTank(t, b);
+        hit = true;
         break;
       }
     }
     if (hit) continue;
 
-    // 子弹对撞
-    for (let j = bullets.length - 1; j >= 0; j--) {
+    // 子弹对撞（两发对向子弹同帧销毁）
+    for (let j = 0; j < bullets.length; j++) {
       if (j === i) continue;
       const o = bullets[j];
+      if (o.dead) continue;
       if (o.owner === b.owner) continue;
       if (Math.abs(o.x - b.x) < 6 && Math.abs(o.y - b.y) < 6) {
-        bullets.splice(Math.max(i, j), 1); bullets.splice(Math.min(i, j), 1);
-        spawnParticles(b.x, b.y, "#fff", 8); break;
+        b.dead = true; o.dead = true;
+        spawnParticles(b.x, b.y, "#fff", 8);
+        break;
       }
     }
   }
+  bullets = bullets.filter(b => !b.dead);
 }
 
 function damageTank(t, b) {
