@@ -209,7 +209,8 @@ const ctx = cv.getContext("2d");
 
 let grid, tanks, bullets, pups, particles;
 let player, score, hiscore, lives, stage, remaining, spawnTimer, spawnPoint;
-let state = "title";          // title | playing | paused | gameover | levelclear | win
+let state = "title";          // title | levelselect | playing | paused | gameover | levelclear | win
+let menuIndex = 0;            // 菜单当前选中项
 let frame = 0;
 let keys = {};
 let lastDir = "up";
@@ -251,6 +252,7 @@ const sfx = {
   shoot:   () => beep(880, 0.06, "square", 0.05),
   eshoot:  () => beep(440, 0.06, "square", 0.04),
   hit:     () => beep(180, 0.12, "sawtooth", 0.12),
+  move:    () => beep(560, 0.04, "square", 0.05),
   brick:   () => beep(120, 0.08, "square", 0.07),
   explode: () => beep(90, 0.4, "sawtooth", 0.2),
   pickup:  () => { beep(660, 0.07, "square", 0.08); setTimeout(()=>beep(990, 0.09, "square", 0.08), 70); },
@@ -315,9 +317,14 @@ function makeBullet(owner, x, y, dir, speed) {
 /* ================= 初始化 / 关卡 ================= */
 function resetAll() {
   hiscore = Math.max(hiscore, +(localStorage.getItem("tank-hi") || 0));
-  score = 0; stage = 1; lives = MAX_LIVES;
-  startStage();
+  startGame(1);
+}
+function startGame(s) {
+  score = 0; stage = s;
+  startStage();                 // 重置生命、基地血量、敌人等
   updateHUD();
+  sfx.start();
+  setStatus("战斗中…");
 }
 function startStage() {
   loadMap(MAPS[(stage - 1) % MAPS.length]);
@@ -772,14 +779,29 @@ function drawPup(p) {
   ctx.restore();
 }
 
+function drawMenu(title, subtitle, items, selected) {
+  ctx.fillStyle = "rgba(0,0,0,0.78)"; ctx.fillRect(0, 0, CANVAS, CANVAS);
+  ctx.fillStyle = "#ffcf3f"; ctx.font = "bold 34px monospace";
+  ctx.textAlign = "center"; ctx.fillText(title, CANVAS / 2, CANVAS / 2 - 62);
+  if (subtitle) {
+    ctx.fillStyle = "#d8f0cf"; ctx.font = "14px monospace";
+    ctx.fillText(subtitle, CANVAS / 2, CANVAS / 2 - 36);
+  }
+  ctx.font = "20px monospace";
+  items.forEach((it, i) => {
+    const y = CANVAS / 2 + i * 34;
+    ctx.fillStyle = i === selected ? "#7ce65c" : "#d8f0cf";
+    ctx.fillText((i === selected ? "▶ " : "  ") + it, CANVAS / 2, y);
+  });
+  ctx.fillStyle = "#4a9a3a"; ctx.font = "12px monospace";
+  ctx.fillText("↑↓ 选择 · Enter 确认 · Esc 返回", CANVAS / 2, CANVAS / 2 + items.length * 34 + 4);
+}
+
 function drawOverlay() {
   if (state === "title") {
-    ctx.fillStyle = "rgba(0,0,0,0.72)"; ctx.fillRect(0, 0, CANVAS, CANVAS);
-    ctx.fillStyle = "#ffcf3f"; ctx.font = "bold 34px monospace";
-    ctx.textAlign = "center"; ctx.fillText("坦克大战", CANVAS / 2, CANVAS / 2 - 20);
-    ctx.fillStyle = "#d8f0cf"; ctx.font = "16px monospace";
-    ctx.fillText("BATTLE CITY", CANVAS / 2, CANVAS / 2 + 10);
-    if ((frame >> 4) & 1) ctx.fillText("按 ENTER 开始", CANVAS / 2, CANVAS / 2 + 56);
+    drawMenu("坦克大战", "BATTLE CITY", ["开始游戏", "选择关卡"], menuIndex);
+  } else if (state === "levelselect") {
+    drawMenu("选择关卡", "SELECT STAGE", ["关卡 1", "关卡 2", "关卡 3"], menuIndex);
   } else if (state === "paused") {
     ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(0, 0, CANVAS, CANVAS);
     ctx.fillStyle = "#fff"; ctx.font = "bold 28px monospace";
@@ -838,20 +860,48 @@ window.addEventListener("keydown", e => {
   keys[k] = true;
   if (k === " " || k === "Space" || k === "j" || k === "J") keys["fire"] = true;
 
-  if (k === "Enter") {
-    if (state === "title" || state === "gameover") { resetAll(); sfx.start(); setStatus("战斗中…"); }
-    else if (state === "levelclear") { stage++; startStage(); setStatus("关卡 " + stage); }
-    else if (state === "win") { stage = 1; resetAll(); }
-    else if (state === "paused") { state = "playing"; setStatus("战斗中…"); }
-  }
-  if (k === "p" || k === "P") {
-    if (state === "playing") { state = "paused"; setStatus("已暂停 — 按 P 继续"); }
-    else if (state === "paused") { state = "playing"; setStatus("战斗中…"); }
-  }
+  // 静音（任意状态可用）
   if (k === "m" || k === "M") {
     muted = !muted;
     document.getElementById("hud").classList.toggle("muted", muted);
     setStatus(muted ? "已静音" : "声音开启");
+    return;
+  }
+
+  // 主菜单
+  if (state === "title") {
+    if (k === "ArrowUp" || k === "ArrowDown" || k === "w" || k === "W" || k === "s" || k === "S") {
+      menuIndex = menuIndex === 0 ? 1 : 0; sfx.move();
+    } else if (k === "Enter") {
+      if (menuIndex === 0) resetAll();
+      else { state = "levelselect"; menuIndex = 0; setStatus("选择关卡 — ↑↓ 选择 · Enter 确认 · Esc 返回"); }
+    }
+    return;
+  }
+  // 选关菜单
+  if (state === "levelselect") {
+    if (k === "ArrowUp" || k === "w" || k === "W") { menuIndex = (menuIndex + 2) % 3; sfx.move(); }
+    else if (k === "ArrowDown" || k === "s" || k === "S") { menuIndex = (menuIndex + 1) % 3; sfx.move(); }
+    else if (k === "Enter") startGame(menuIndex + 1);
+    else if (k === "1") startGame(1);
+    else if (k === "2") startGame(2);
+    else if (k === "3") startGame(3);
+    else if (k === "Escape") { state = "title"; menuIndex = 0; setStatus("按 Enter 开始"); }
+    return;
+  }
+
+  if (k === "Enter") {
+    if (state === "gameover") resetAll();
+    else if (state === "levelclear") { stage++; startStage(); setStatus("关卡 " + stage); }
+    else if (state === "win") resetAll();
+    else if (state === "paused") { state = "playing"; setStatus("战斗中…"); }
+  }
+  if (k === "Escape" && (state === "gameover" || state === "win" || state === "levelclear" || state === "paused")) {
+    state = "title"; menuIndex = 0; setStatus("按 Enter 开始");
+  }
+  if (k === "p" || k === "P") {
+    if (state === "playing") { state = "paused"; setStatus("已暂停 — 按 P 继续"); }
+    else if (state === "paused") { state = "playing"; setStatus("战斗中…"); }
   }
 });
 window.addEventListener("keyup", e => {
@@ -873,13 +923,33 @@ function bindTouch(btn, key) {
 document.querySelectorAll("#dpad button").forEach(b => bindTouch(b, b.dataset.k));
 bindTouch(document.getElementById("fire"), "fire");
 
+// 菜单：鼠标点击 / 触屏选择
+function menuItemAt(y, n) {
+  for (let i = 0; i < n; i++) {
+    if (Math.abs(y - (CANVAS / 2 + i * 34)) < 16) return i;
+  }
+  return -1;
+}
+cv.addEventListener("click", e => {
+  const r = cv.getBoundingClientRect();
+  const y = (e.clientY - r.top) * (CANVAS / r.height);
+  if (state === "title") {
+    const i = menuItemAt(y, 2);
+    if (i === 0) resetAll();
+    else if (i === 1) { state = "levelselect"; menuIndex = 0; setStatus("选择关卡 — ↑↓ 选择 · Enter 确认 · Esc 返回"); }
+  } else if (state === "levelselect") {
+    const i = menuItemAt(y, 3);
+    if (i >= 0) startGame(i + 1);
+  }
+});
+
 /* ================= 启动 ================= */
 hiscore = +(localStorage.getItem("tank-hi") || 0);
 loadMap(MAPS[0]);
 player = makeTank(PLAYER_SPAWN[0], PLAYER_SPAWN[1], "up", false);
 tanks = [player]; bullets = []; pups = []; particles = [];
 updateHUD();
-setStatus("按 <span class='key'>Enter</span> 开始游戏");
+setStatus("↑↓ 选择菜单 · Enter 确认 · Esc 返回");
 loop();
 </script>
 </body>
