@@ -605,7 +605,7 @@ function gameOver() {
   state = "gameover";
   saveHi();
   sfx.gameover();
-  setStatus("💥 基地被毁 / 阵亡！按 Enter 重新开始");
+  setStatus("💥 基地被毁 / 阵亡！按 Enter 重开本关（Esc 返回菜单）");
 }
 function saveHi() {
   if (score > hiscore) { hiscore = score; localStorage.setItem("tank-hi", hiscore); }
@@ -814,7 +814,7 @@ function drawOverlay() {
     ctx.fillText(msg, CANVAS / 2, CANVAS / 2 - 14);
     ctx.fillStyle = "#d8f0cf"; ctx.font = "16px monospace";
     ctx.fillText("得分 " + score, CANVAS / 2, CANVAS / 2 + 20);
-    if ((frame >> 4) & 1) ctx.fillText("按 ENTER " + (state === "gameover" ? "重新开始" : "继续"), CANVAS / 2, CANVAS / 2 + 58);
+    if ((frame >> 4) & 1) ctx.fillText("按 ENTER " + (state === "gameover" ? "重开本关" : "继续"), CANVAS / 2, CANVAS / 2 + 58);
   }
 }
 
@@ -891,7 +891,7 @@ window.addEventListener("keydown", e => {
   }
 
   if (k === "Enter") {
-    if (state === "gameover") resetAll();
+    if (state === "gameover") startGame(stage);   // 重开本关，不回第 1 关
     else if (state === "levelclear") { stage++; startStage(); setStatus("关卡 " + stage); }
     else if (state === "win") resetAll();
     else if (state === "paused") { state = "playing"; setStatus("战斗中…"); }
