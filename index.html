@@ -118,6 +118,80 @@
     #game { flex-direction: column; align-items: center; }
     #hud { flex-direction: row; flex-wrap: wrap; min-width: 0; width: min(90vw,440px); justify-content: space-between; }
   }
+
+  /* ===== 横屏移动端：左右手柄式布局 ===== */
+  @media (orientation: landscape) and (pointer: coarse) {
+    body {
+      display: grid;
+      grid-template-areas:
+        "hud    hud    hud"
+        "dpad   canvas actions"
+        "status status status";
+      grid-template-columns: auto 1fr auto;
+      grid-template-rows: auto 1fr auto;
+      gap: 8px;
+      height: 100vh;
+      width: 100%;
+      padding: 8px;
+      overflow: hidden;
+    }
+    h1, #help { display: none; }
+
+    /* 展开 game / touch 容器，让子元素直接进入 grid */
+    #game { display: contents; }
+    #touch { display: contents; }
+
+    #cv {
+      grid-area: canvas;
+      justify-self: center;
+      align-self: center;
+      width: min(70vh, 60vw, 400px);
+      height: min(70vh, 60vw, 400px);
+    }
+
+    #hud {
+      grid-area: hud;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 4px 16px;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 10px;
+      min-width: 0;
+      width: 100%;
+      font-size: 12px;
+    }
+    #hud .row { flex-direction: row; gap: 5px; align-items: center; }
+    #hud .row:nth-child(2), #hud .row:nth-child(6) { display: none; } /* 横屏隐藏最高分、基地血量 */
+    #hud .lbl { font-size: 9px; }
+    #hud .val { font-size: 15px; }
+
+    #dpad {
+      grid-area: dpad;
+      align-self: center;
+      justify-self: start;
+      grid-template-columns: repeat(3, 44px);
+      grid-template-rows: repeat(3, 44px);
+      gap: 3px;
+    }
+    #dpad button { width: 44px; height: 44px; font-size: 17px; }
+
+    #touch-actions {
+      grid-area: actions;
+      align-self: center;
+      justify-self: end;
+      flex-direction: column;
+      gap: 8px;
+    }
+    #confirm, #back { width: 60px; height: 34px; font-size: 12px; }
+    #fire { width: 68px; height: 68px; font-size: 14px; }
+
+    #status {
+      grid-area: status;
+      font-size: 12px;
+      min-height: 16px;
+    }
+  }
 </style>
 </head>
 <body>
