@@ -320,7 +320,7 @@ function startStage() {
   tanks = []; bullets = []; pups = []; particles = [];
   player = makeTank(PLAYER_SPAWN[0], PLAYER_SPAWN[1], "up", false);
   tanks.push(player);
-  remaining = 10 + stage * 4;      // 每关敌军数量
+  remaining = 6 + stage * 3;      // 每关敌军数量（初始较少）
   spawnTimer = 60; spawnPoint = 0;
   playerShootCd = 0;
   state = "playing";
