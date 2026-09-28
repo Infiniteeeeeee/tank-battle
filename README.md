@@ -16,15 +16,7 @@
 
 ## 🚀 快速开始
 
-直接双击打开 `index.html`，或使用任意静态服务器：
-
-```bash
-# 例如使用 Python
-python -m http.server 8000
-# 然后访问 http://localhost:8000
-```
-
-> 也可以直接部署到 GitHub Pages，开箱即用。
+开始试玩：[点击此处](https://infiniteeeeeee.github.io/tank-battle/)
 
 ## 🎯 操作说明
 
